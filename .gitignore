@@ -6,6 +6,11 @@ build/
 .env.local
 .env*.local
 .data/
+# Local SQLite database + WAL/journal sidecars (your personal study data)
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-wal
+prisma/*.db-shm
 *.tsbuildinfo
 next-env.d.ts
 npm-debug.log*

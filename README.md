@@ -24,22 +24,44 @@ knowledge gap → suggestion → brief → GPT Image 2 prompt → (you create th
 ## Stack
 
 - **Next.js 15 (App Router) + TypeScript + Tailwind 4** — responsive, dark-mode, mobile bottom nav / desktop sidebar
-- **Postgres + Prisma** — full data model: source material, briefs, image prompts, assets, drafts, modules, concepts, quick hits, questions, rubrics, review state, attempts, notes, bookmarks
+- **SQLite + Prisma** — a single local file (`prisma/knowledge-map.db`), no database server to run. Full data model: source material, briefs, image prompts, assets, drafts, modules, concepts, quick hits, questions, rubrics, review state, attempts, notes, bookmarks
 - **Anthropic API (server routes only)** — gap suggestions, brief generation, image-prompt generation, module generation, question generation, rubric-based grading (saved to attempt history), streaming deep dives. Structured outputs with schema enforcement + retry; cached questions and reused rubrics; a lighter model for simple generation
 - **App-controlled image storage** — local-disk driver behind a storage interface (`src/lib/storage`), thumbnails via sharp, served from `/api/assets/…`; S3/R2 or a Google Drive inbox importer can implement the same interface
 
-## Setup
+## Open it like an app (macOS)
+
+No terminal needed. In Finder, **double-click `Knowledge Map.command`**. The first
+launch installs dependencies, creates and seeds the local database, builds the
+app, then opens it in your browser; later launches just start it and open the
+browser. Keep the Terminal window open while you study — closing it stops the
+app. Your data lives in one local file (`prisma/knowledge-map.db`) and stays put
+between launches.
+
+Want a real Dock icon? Double-click **`Create Mac App.command`** once to generate
+`Knowledge Map.app`, then drag it to your Dock or Applications folder and open it
+like any other app.
+
+> The first time you open `Knowledge Map.command`, macOS may warn about an app
+> from an unidentified developer — right-click it → **Open** to allow it. You'll
+> need [Node.js](https://nodejs.org) installed (the launcher points you there if
+> it's missing).
+
+To enable AI features (grading, deep dives, generation), add your key to `.env`:
+`ANTHROPIC_API_KEY="…"`. Without it, studying and review work fully; AI features
+return a clear 503.
+
+## Setup (manual / development)
 
 ```bash
 npm install
-cp .env.example .env   # set DATABASE_URL and ANTHROPIC_API_KEY
+cp .env.example .env   # DATABASE_URL defaults to local SQLite; set ANTHROPIC_API_KEY for AI
 
-npx prisma db push     # create schema
+npx prisma db push     # create the local SQLite schema
 npm run db:seed        # taxonomy + migrate the 50-infographic prototype collection
-npm run dev
+npm run dev            # or: npm run build && npm start
 ```
 
-Any Postgres works (Neon/Supabase/local). Without `ANTHROPIC_API_KEY`, studying/review works fully; AI features return a clear 503.
+The database is a local SQLite file — nothing to install or keep running.
 
 ## Content-first ingestion (no OCR required)
 
