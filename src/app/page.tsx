@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { TodayFocus, type FocusItem } from "@/components/today-focus";
 import { SuggestionCard } from "@/components/suggestion-card";
+import { SmartImage } from "@/components/smart-image";
 import { greeting, formatDate, dueLabel } from "@/lib/format";
 import {
   CalendarDays,
@@ -274,14 +275,13 @@ export default async function TodayPage() {
                       key={m.id}
                       className="flex gap-3 rounded-lg border border-black/5 p-3 dark:border-white/10"
                     >
-                      {m.asset?.thumbnailUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.asset.thumbnailUrl}
-                          alt=""
-                          className="h-20 w-20 shrink-0 rounded-lg object-cover object-top"
-                        />
-                      )}
+                      <SmartImage
+                        src={m.asset?.thumbnailUrl}
+                        alt=""
+                        className="h-20 w-20 shrink-0 rounded-lg object-cover object-top"
+                        fallbackClassName="h-20 w-20 shrink-0 rounded-lg"
+                        fallbackLabel=""
+                      />
                       <div className="min-w-0 flex-1 space-y-1.5">
                         <p className="truncate text-sm font-semibold">{m.title}</p>
                         <p className="text-xs text-zinc-500">You were reviewing</p>
@@ -305,18 +305,16 @@ export default async function TodayPage() {
                       href={`/library/${m.slug}`}
                       className="flex items-center gap-3 rounded-lg border border-black/5 px-3 py-2.5 transition-colors hover:border-violet-500/30 hover:bg-violet-500/5 dark:border-white/10"
                     >
-                      {m.asset?.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={m.asset.thumbnailUrl}
-                          alt=""
-                          className="h-10 w-10 shrink-0 rounded-lg object-cover object-top"
-                        />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
-                          <FileText className="h-4 w-4 text-violet-500" />
-                        </span>
-                      )}
+                      <SmartImage
+                        src={m.asset?.thumbnailUrl}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover object-top"
+                        fallback={
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
+                            <FileText className="h-4 w-4 text-violet-500" />
+                          </span>
+                        }
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{m.title}</span>
                         <span className="block text-xs text-zinc-500">

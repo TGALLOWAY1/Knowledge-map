@@ -6,6 +6,7 @@ import { loadCardStates, summarize } from "@/lib/analytics";
 import { CATEGORIES, LIFECYCLE_STAGES } from "@/lib/constants";
 import { Card, Badge, EmptyState, ProgressBar, buttonClass } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
+import { SmartImage } from "@/components/smart-image";
 import { SuggestionCard } from "@/components/suggestion-card";
 import { GenerateSuggestions, AddBacklogForm } from "@/components/studio-gaps";
 import {
@@ -395,11 +396,12 @@ async function ReviewTab() {
           <Link key={d.id} href={`/studio/drafts/${d.id}`} className="block">
             <Card className="flex items-center gap-3 px-4 py-3 transition-shadow hover:shadow-md">
               {d.sourceMaterial.asset?.thumbnailUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SmartImage
                   src={d.sourceMaterial.asset.thumbnailUrl}
                   alt=""
                   className="h-12 w-12 shrink-0 rounded-lg object-cover object-top"
+                  fallbackClassName="h-12 w-12 shrink-0 rounded-lg"
+                  fallbackLabel=""
                 />
               )}
               <div className="min-w-0 flex-1">
@@ -434,11 +436,12 @@ async function PublishedTab() {
         <Link key={m.id} href={`/library/${m.slug}`} className="block">
           <Card className="flex items-center gap-3 px-4 py-3 transition-shadow hover:shadow-md">
             {m.asset?.thumbnailUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SmartImage
                 src={m.asset.thumbnailUrl}
                 alt=""
                 className="h-12 w-12 shrink-0 rounded-lg object-cover object-top"
+                fallbackClassName="h-12 w-12 shrink-0 rounded-lg"
+                fallbackLabel=""
               />
             )}
             <div className="min-w-0 flex-1">

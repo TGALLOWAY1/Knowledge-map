@@ -6,6 +6,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { Card, Badge, buttonClass, textareaClass, ProgressBar } from "@/components/ui";
 import { Breadcrumbs } from "@/components/page-header";
+import { SmartImage } from "@/components/smart-image";
 import { schedule, type Rating } from "@/lib/srs";
 import { intervalLabel, estReviewMinutes } from "@/lib/format";
 import { CATEGORIES, LIFECYCLE_STAGES } from "@/lib/constants";
@@ -402,19 +403,18 @@ export function ReviewSession() {
             className="max-h-[46vh] overflow-auto overscroll-contain bg-zinc-50 dark:bg-zinc-950"
             style={{ touchAction: "pan-x pan-y pinch-zoom" }}
           >
-            {mod?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={mod.imageUrl}
-                alt={mod.imageAlt}
-                className="mx-auto origin-top transition-transform"
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
-              />
-            ) : (
-              <div className="flex h-48 items-center justify-center text-sm text-zinc-400">
-                No infographic image for this module
-              </div>
-            )}
+            <SmartImage
+              src={mod?.imageUrl}
+              alt={mod?.imageAlt ?? card.moduleTitle}
+              className="mx-auto origin-top transition-transform"
+              style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+              fallbackClassName="h-48 w-full"
+              fallbackLabel={
+                mod?.imageUrl
+                  ? "Infographic image couldn't be loaded"
+                  : "No infographic image for this module"
+              }
+            />
           </div>
 
           <div className="border-t border-black/5 dark:border-white/10">

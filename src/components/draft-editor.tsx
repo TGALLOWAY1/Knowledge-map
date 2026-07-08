@@ -7,6 +7,7 @@ import clsx from "clsx";
 import { Card, Badge, buttonClass, inputClass, textareaClass } from "@/components/ui";
 import { Breadcrumbs } from "@/components/page-header";
 import { ProgressStepper } from "@/components/stepper";
+import { SmartImage } from "@/components/smart-image";
 import { ChipEditor } from "@/components/chip-editor";
 import { ImageUpload, type UploadedAsset } from "@/components/upload";
 import { CATEGORY_NAMES, LIFECYCLE_NAMES } from "@/lib/constants";
@@ -233,11 +234,12 @@ export function DraftEditor({ draft }: { draft: DraftData }) {
           <Card className="space-y-3 px-4 py-4">
             <p className="text-sm font-semibold">Final Infographic</p>
             {asset ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SmartImage
                 src={asset.thumbnailUrl ?? asset.originalUrl}
                 alt={content.altText}
                 className="w-full rounded-lg border border-black/5 object-contain dark:border-white/10"
+                fallbackClassName="h-40 w-full rounded-lg"
+                fallbackLabel="Image attached but couldn't be loaded — check sharing or replace it"
               />
             ) : (
               <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
