@@ -1,16 +1,24 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { ModuleReader } from "@/components/module-reader";
+import { ModuleReader, type ReaderTab } from "@/components/module-reader";
 
 export const dynamic = "force-dynamic";
 
+const READER_TABS = ["concepts", "quiz", "notes", "ask"] as const;
+
 export default async function ModulePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { slug } = await params;
+  const { tab } = await searchParams;
+  const initialTab: ReaderTab = READER_TABS.includes(tab as ReaderTab)
+    ? (tab as ReaderTab)
+    : "concepts";
   const user = await getCurrentUser();
 
   const module = await prisma.module.findUnique({
@@ -43,6 +51,7 @@ export default async function ModulePage({
 
   return (
     <ModuleReader
+      initialTab={initialTab}
       module={{
         id: module.id,
         slug: module.slug,

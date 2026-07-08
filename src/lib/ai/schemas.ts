@@ -123,6 +123,9 @@ export interface BriefContent {
   misconceptions: string[];
   suggestedQuickHits: { question: string; answer: string }[];
   suggestedConcepts: string[];
+  // UI-only free-text notes; stored in the Json column but intentionally not
+  // part of the AI generation schema (may be absent on older briefs).
+  notes?: string;
 }
 
 export const IMAGE_PROMPT_SCHEMA = {

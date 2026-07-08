@@ -27,6 +27,9 @@ export default async function DraftPage({
         moduleSlug: draft.module?.slug ?? null,
         briefId: draft.sourceMaterial.briefId,
         sourceConcept: draft.sourceMaterial.concept,
+        hasImagePrompt: !!draft.sourceMaterial.imagePrompt,
+        sourceCreatedAt: draft.sourceMaterial.createdAt.toISOString(),
+        updatedAt: draft.updatedAt.toISOString(),
         asset: draft.sourceMaterial.asset
           ? {
               id: draft.sourceMaterial.asset.id,

@@ -37,10 +37,17 @@ export interface ReaderModule {
   related: { slug: string; title: string; categoryName: string; categoryColor: string }[];
 }
 
-type Tab = "concepts" | "quiz" | "notes" | "ask";
+export type ReaderTab = "concepts" | "quiz" | "notes" | "ask";
+type Tab = ReaderTab;
 
-export function ModuleReader({ module }: { module: ReaderModule }) {
-  const [tab, setTab] = useState<Tab>("concepts");
+export function ModuleReader({
+  module,
+  initialTab = "concepts",
+}: {
+  module: ReaderModule;
+  initialTab?: ReaderTab;
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [zoom, setZoom] = useState(1);
   const [quizConceptId, setQuizConceptId] = useState<string | null>(null);
   const [askPrefill, setAskPrefill] = useState("");
