@@ -106,7 +106,7 @@ export async function buildQueue(
           categoryName: s.concept.module.category.name,
           front: s.concept.name,
           back: s.concept.summary,
-          keyPoints: s.concept.keyPoints,
+          keyPoints: s.concept.keyPoints as string[],
           status: s.status,
           dueAt: s.dueAt.toISOString(),
         },

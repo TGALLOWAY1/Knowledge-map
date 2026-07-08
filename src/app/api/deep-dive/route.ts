@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             moduleSummary: module.summary,
             conceptName: concept?.name,
             conceptSummary: concept?.summary,
-            keyPoints: concept?.keyPoints,
+            keyPoints: concept?.keyPoints as string[] | undefined,
             sourceDetails: module.sourceMaterial?.details,
             question,
           }),

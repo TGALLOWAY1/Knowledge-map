@@ -76,7 +76,7 @@ export function schedule(state: SrsState, rating: Rating, now: Date = new Date()
 // New cards score 0; cards climb with successful reps and interval length,
 // and are penalized for lapses.
 export function cardMastery(state: {
-  status: CardStatus;
+  status: string;
   intervalDays: number;
   reps: number;
   lapses: number;
@@ -90,7 +90,7 @@ export function cardMastery(state: {
 }
 
 export function isWeak(state: {
-  status: CardStatus;
+  status: string;
   intervalDays: number;
   reps: number;
   lapses: number;

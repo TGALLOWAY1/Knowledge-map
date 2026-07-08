@@ -1,13 +1,18 @@
 // Knowledge Map — interview-prep study system
 // Content is never hardcoded in components: modules, concepts, quick hits,
 // questions, and review state all render from this database.
+//
+// Local-first: SQLite keeps the whole app self-contained (one file, no server
+// to run). Postgres-only features are avoided so the app stays portable —
+// enums are stored as strings and list fields as JSON. Values for the
+// former enums are documented next to each field.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -56,28 +61,16 @@ model LifecycleStage {
 // gap → brief → image prompt → awaiting image → draft → published module
 // ---------------------------------------------------------------------------
 
-enum GapStatus {
-  SUGGESTED
-  BACKLOG
-  DISMISSED
-  COVERED
-  PROMOTED // became a brief
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-}
-
 model ConceptGap {
   id               String          @id @default(cuid())
   title            String
   reason           String // why this matters
   recommendation   String? // recommended infographic contents
   sourceSignal     String? // e.g. "weak quiz performance in Embeddings"
-  status           GapStatus       @default(SUGGESTED)
-  priority         Priority        @default(MEDIUM)
+  // GapStatus: "SUGGESTED" | "BACKLOG" | "DISMISSED" | "COVERED" | "PROMOTED"
+  status           String          @default("SUGGESTED")
+  // Priority: "LOW" | "MEDIUM" | "HIGH"
+  priority         String          @default("MEDIUM")
   notes            String?
   category         Category?       @relation(fields: [categoryId], references: [id])
   categoryId       String?
@@ -88,24 +81,18 @@ model ConceptGap {
   updatedAt        DateTime        @updatedAt
 }
 
-enum BriefStage {
-  DRAFT // brief being edited, no final image prompt yet
-  AWAITING_IMAGE // prompt generated, waiting for the user to create/upload image
-  IMAGE_ATTACHED // final image uploaded; study module draft can be generated
-  ARCHIVED
-}
-
 model InfographicBrief {
   id                 String                  @id @default(cuid())
   title              String
   learningObjective  String?
   audienceLevel      String? // e.g. "mid-level ML engineer interview"
-  tags               String[]
+  tags               Json                    @default("[]") // string[]
   // structured brief content, editable before prompt generation:
   // { mainSections, keyTerms, examples, interviewQuestions, visualLayout,
   //   misconceptions, suggestedQuickHits, suggestedConcepts }
   content            Json
-  stage              BriefStage              @default(DRAFT)
+  // BriefStage: "DRAFT" | "AWAITING_IMAGE" | "IMAGE_ATTACHED" | "ARCHIVED"
+  stage              String                  @default("DRAFT")
   category           Category?               @relation(fields: [categoryId], references: [id])
   categoryId         String?
   lifecycleStage     LifecycleStage?         @relation(fields: [lifecycleStageId], references: [id])
@@ -151,14 +138,10 @@ model SourceMaterial {
   publishedAt       DateTime?
 }
 
-enum AssetSource {
-  UPLOAD
-  DRIVE
-}
-
 model InfographicAsset {
   id             String         @id @default(cuid())
-  source         AssetSource
+  // AssetSource: "UPLOAD" | "DRIVE"
+  source         String
   storageKey     String? // key in app-controlled storage (null while Drive-only)
   thumbnailKey   String?
   originalUrl    String // canonical serving URL (/api/assets/… or Drive URL pre-import)
@@ -174,18 +157,12 @@ model InfographicAsset {
   module         Module?
 }
 
-enum JobStatus {
-  PENDING
-  RUNNING
-  SUCCEEDED
-  FAILED
-}
-
 // Tracks uploads and (future) Drive-inbox imports into app storage.
 model IngestionJob {
   id        String    @id @default(cuid())
   kind      String // "upload" | "drive_import"
-  status    JobStatus @default(PENDING)
+  // JobStatus: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED"
+  status    String    @default("PENDING")
   payload   Json?
   error     String?
   createdAt DateTime  @default(now())
@@ -195,12 +172,6 @@ model IngestionJob {
 // ---------------------------------------------------------------------------
 // Study module drafts & published modules
 // ---------------------------------------------------------------------------
-
-enum DraftStatus {
-  NEEDS_REVIEW
-  PUBLISHED
-  ARCHIVED
-}
 
 model StudyModuleDraft {
   id                String         @id @default(cuid())
@@ -212,16 +183,12 @@ model StudyModuleDraft {
   //   questions: [{prompt, rubric: {criteria}}], altText }
   content           Json
   generationVersion Int            @default(1)
-  status            DraftStatus    @default(NEEDS_REVIEW)
+  // DraftStatus: "NEEDS_REVIEW" | "PUBLISHED" | "ARCHIVED"
+  status            String         @default("NEEDS_REVIEW")
   module            Module?        @relation(fields: [moduleId], references: [id])
   moduleId          String?        @unique
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
-}
-
-enum ModuleStatus {
-  PUBLISHED
-  ARCHIVED
 }
 
 model Module {
@@ -230,8 +197,9 @@ model Module {
   title            String
   subtitle         String?
   summary          String?
-  tags             String[]
-  status           ModuleStatus      @default(PUBLISHED)
+  tags             Json              @default("[]") // string[]
+  // ModuleStatus: "PUBLISHED" | "ARCHIVED"
+  status           String            @default("PUBLISHED")
   category         Category          @relation(fields: [categoryId], references: [id])
   categoryId       String
   lifecycleStage   LifecycleStage?   @relation(fields: [lifecycleStageId], references: [id])
@@ -257,7 +225,7 @@ model Concept {
   moduleId     String
   name         String
   summary      String
-  keyPoints    String[]
+  keyPoints    Json          @default("[]") // string[]
   order        Int           @default(0)
   reviewStates ReviewState[]
   attempts     Attempt[]
@@ -303,13 +271,6 @@ model Rubric {
 // Spaced repetition & progress
 // ---------------------------------------------------------------------------
 
-enum CardStatus {
-  NEW
-  LEARNING
-  REVIEW
-  LAPSED
-}
-
 // One row per (user, card). A card is a Concept or a QuickHit.
 model ReviewState {
   id             String     @id @default(cuid())
@@ -319,7 +280,8 @@ model ReviewState {
   conceptId      String?
   quickHit       QuickHit?  @relation(fields: [quickHitId], references: [id], onDelete: Cascade)
   quickHitId     String?
-  status         CardStatus @default(NEW)
+  // CardStatus: "NEW" | "LEARNING" | "REVIEW" | "LAPSED"
+  status         String     @default("NEW")
   dueAt          DateTime   @default(now())
   lastReviewedAt DateTime?
   intervalDays   Float      @default(0)
@@ -334,12 +296,6 @@ model ReviewState {
   @@index([userId, dueAt])
 }
 
-enum Verdict {
-  STRONG
-  PARTIAL
-  OFF_TRACK
-}
-
 model Attempt {
   id              String    @id @default(cuid())
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -351,10 +307,11 @@ model Attempt {
   question        Question? @relation(fields: [questionId], references: [id], onDelete: SetNull)
   questionId      String?
   answerText      String
-  verdict         Verdict
+  // Verdict: "STRONG" | "PARTIAL" | "OFF_TRACK"
+  verdict         String
   score           Int // 0–100
   feedback        String
-  missedPoints    String[]
+  missedPoints    Json      @default("[]") // string[]
   suggestedAnswer String?
   createdAt       DateTime  @default(now())
 

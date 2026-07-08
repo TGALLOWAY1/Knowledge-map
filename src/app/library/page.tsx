@@ -29,13 +29,14 @@ export default async function LibraryPage({
       status: "PUBLISHED",
       ...(params.category && { category: { slug: params.category } }),
       ...(params.stage && { lifecycleStage: { slug: params.stage } }),
-      ...(params.tag && { tags: { has: params.tag } }),
+      // Tag filter is applied in JS below — SQLite can't query inside a JSON list.
       ...(params.q && {
+        // SQLite's LIKE is case-insensitive for ASCII, so `contains` needs no mode.
         OR: [
-          { title: { contains: params.q, mode: "insensitive" as const } },
-          { subtitle: { contains: params.q, mode: "insensitive" as const } },
-          { summary: { contains: params.q, mode: "insensitive" as const } },
-          { concepts: { some: { name: { contains: params.q, mode: "insensitive" as const } } } },
+          { title: { contains: params.q } },
+          { subtitle: { contains: params.q } },
+          { summary: { contains: params.q } },
+          { concepts: { some: { name: { contains: params.q } } } },
         ],
       }),
     },
@@ -74,6 +75,7 @@ export default async function LibraryPage({
   });
 
   const filtered = enriched.filter((e) => {
+    if (params.tag && !(e.module.tags as string[]).includes(params.tag)) return false;
     if (params.filter === "due") return e.due > 0;
     if (params.filter === "overdue") return e.overdue > 0;
     if (params.filter === "weak") return e.weak;

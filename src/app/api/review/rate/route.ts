@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { schedule, type Rating } from "@/lib/srs";
+import { schedule, type Rating, type CardStatus } from "@/lib/srs";
 import { jsonError } from "@/lib/api";
 
 const RATINGS: Rating[] = ["again", "hard", "good", "easy"];
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const next = schedule(
       {
-        status: state.status,
+        status: state.status as CardStatus,
         intervalDays: state.intervalDays,
         ease: state.ease,
         reps: state.reps,

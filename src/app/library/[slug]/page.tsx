@@ -28,18 +28,21 @@ export default async function ModulePage({
   });
   if (!module || module.status !== "PUBLISHED") notFound();
 
-  const related = await prisma.module.findMany({
-    where: {
-      status: "PUBLISHED",
-      id: { not: module.id },
-      OR: [
-        { categoryId: module.categoryId },
-        { tags: { hasSome: module.tags } },
-      ],
-    },
-    include: { category: true },
-    take: 4,
-  });
+  // Related = same category or a shared tag. SQLite can't query inside a JSON
+  // list, so score the (small) published set in application code.
+  const moduleTags = module.tags as string[];
+  const related = (
+    await prisma.module.findMany({
+      where: { status: "PUBLISHED", id: { not: module.id } },
+      include: { category: true },
+    })
+  )
+    .filter(
+      (r) =>
+        r.categoryId === module.categoryId ||
+        (r.tags as string[]).some((t) => moduleTags.includes(t)),
+    )
+    .slice(0, 4);
 
   return (
     <ModuleReader
@@ -49,7 +52,7 @@ export default async function ModulePage({
         title: module.title,
         subtitle: module.subtitle,
         summary: module.summary,
-        tags: module.tags,
+        tags: module.tags as string[],
         categoryName: module.category.name,
         categoryColor: module.category.color,
         lifecycleName: module.lifecycleStage?.name ?? null,
@@ -59,7 +62,7 @@ export default async function ModulePage({
           id: c.id,
           name: c.name,
           summary: c.summary,
-          keyPoints: c.keyPoints,
+          keyPoints: c.keyPoints as string[],
         })),
         quickHits: module.quickHits.map((q) => ({
           id: q.id,

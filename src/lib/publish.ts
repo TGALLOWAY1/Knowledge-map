@@ -95,15 +95,23 @@ export async function publishDraft(draftId: string, userId: string) {
 
 // Ensure every concept and quick hit of a module has a ReviewState row.
 export async function initReviewStates(userId: string, moduleId: string) {
-  const [concepts, quickHits] = await Promise.all([
+  const [concepts, quickHits, existing] = await Promise.all([
     prisma.concept.findMany({ where: { moduleId }, select: { id: true } }),
     prisma.quickHit.findMany({ where: { moduleId }, select: { id: true } }),
+    prisma.reviewState.findMany({
+      where: { userId, OR: [{ concept: { moduleId } }, { quickHit: { moduleId } }] },
+      select: { conceptId: true, quickHitId: true },
+    }),
   ]);
-  await prisma.reviewState.createMany({
-    data: [
-      ...concepts.map((c) => ({ userId, conceptId: c.id })),
-      ...quickHits.map((q) => ({ userId, quickHitId: q.id })),
-    ],
-    skipDuplicates: true,
-  });
+
+  // SQLite's createMany has no skipDuplicates, so filter out cards that already
+  // have a ReviewState (e.g. when republishing an existing module).
+  const seenConcepts = new Set(existing.map((s) => s.conceptId).filter(Boolean));
+  const seenQuickHits = new Set(existing.map((s) => s.quickHitId).filter(Boolean));
+
+  const data = [
+    ...concepts.filter((c) => !seenConcepts.has(c.id)).map((c) => ({ userId, conceptId: c.id })),
+    ...quickHits.filter((q) => !seenQuickHits.has(q.id)).map((q) => ({ userId, quickHitId: q.id })),
+  ];
+  if (data.length > 0) await prisma.reviewState.createMany({ data });
 }

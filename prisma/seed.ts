@@ -158,12 +158,13 @@ async function main() {
       include: { concepts: true, quickHits: true },
     });
 
+    // Fresh module (guarded by slug above), so there is no existing review
+    // state to skip — SQLite's createMany doesn't support skipDuplicates.
     await prisma.reviewState.createMany({
       data: [
         ...module.concepts.map((c) => ({ userId: user.id, conceptId: c.id })),
         ...module.quickHits.map((q) => ({ userId: user.id, quickHitId: q.id })),
       ],
-      skipDuplicates: true,
     });
     created++;
   }
