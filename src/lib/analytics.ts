@@ -7,6 +7,7 @@ export interface CardStateLite {
   id: string;
   status: string;
   dueAt: Date;
+  lastReviewedAt: Date | null;
   intervalDays: number;
   ease: number;
   reps: number;
@@ -39,6 +40,7 @@ export async function loadCardStates(userId: string): Promise<CardStateLite[]> {
         id: s.id,
         status: s.status,
         dueAt: s.dueAt,
+        lastReviewedAt: s.lastReviewedAt,
         intervalDays: s.intervalDays,
         ease: s.ease,
         reps: s.reps,
@@ -58,6 +60,12 @@ export async function loadCardStates(userId: string): Promise<CardStateLite[]> {
   });
 }
 
+// True when the card's rating history contains an "again" within the window.
+export function hasRecentMiss(history: unknown, cutoff: Date): boolean {
+  const entries = (history as { at: string; rating: string }[] | null) ?? [];
+  return entries.some((h) => h.rating === "again" && new Date(h.at) >= cutoff);
+}
+
 export function summarize(states: CardStateLite[]) {
   const now = new Date();
   const asSrs = (s: CardStateLite) => ({
@@ -73,20 +81,27 @@ export function summarize(states: CardStateLite[]) {
   );
   const fresh = states.filter((s) => s.status === "NEW");
   const weak = states.filter((s) => isWeak(asSrs(s)));
+  const missCutoff = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+  const missed = states.filter((s) => hasRecentMiss(s.history, missCutoff));
   const mastery =
     states.length === 0
       ? 0
       : states.reduce((sum, s) => sum + cardMastery(asSrs(s)), 0) / states.length;
 
   const byGroup = (key: (s: CardStateLite) => string | null) => {
-    const groups = new Map<string, { total: number; sum: number; due: number }>();
+    const groups = new Map<
+      string,
+      { total: number; sum: number; due: number; mastered: number }
+    >();
     for (const s of states) {
       const k = key(s);
       if (!k) continue;
-      const g = groups.get(k) ?? { total: 0, sum: 0, due: 0 };
+      const g = groups.get(k) ?? { total: 0, sum: 0, due: 0, mastered: 0 };
+      const mastery = cardMastery(asSrs(s));
       g.total += 1;
-      g.sum += cardMastery(asSrs(s));
+      g.sum += mastery;
       if (s.status !== "NEW" && s.dueAt <= now) g.due += 1;
+      if (mastery >= 0.6) g.mastered += 1;
       groups.set(k, g);
     }
     return [...groups.entries()].map(([name, g]) => ({
@@ -94,6 +109,7 @@ export function summarize(states: CardStateLite[]) {
       mastery: g.total ? g.sum / g.total : 0,
       cards: g.total,
       due: g.due,
+      mastered: g.mastered,
     }));
   };
 
@@ -103,6 +119,7 @@ export function summarize(states: CardStateLite[]) {
     overdueCount: overdue.length,
     newCount: fresh.length,
     weakCount: weak.length,
+    missedCount: missed.length,
     mastery,
     byCategory: byGroup((s) => s.categoryName).sort((a, b) => a.mastery - b.mastery),
     byLifecycle: byGroup((s) => s.lifecycleName).sort((a, b) => a.mastery - b.mastery),

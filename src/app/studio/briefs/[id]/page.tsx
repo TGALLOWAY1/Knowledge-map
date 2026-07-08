@@ -16,6 +16,7 @@ export default async function BriefPage({
     include: {
       category: true,
       lifecycleStage: true,
+      conceptGap: true,
       imagePrompts: { orderBy: { version: "desc" } },
       sourceMaterial: { include: { asset: true, drafts: true } },
     },
@@ -32,6 +33,7 @@ export default async function BriefPage({
         stage: brief.stage,
         categoryName: brief.category?.name ?? null,
         lifecycleName: brief.lifecycleStage?.name ?? null,
+        gapPriority: brief.conceptGap?.priority ?? null,
         content: brief.content as unknown as BriefContent,
         prompts: brief.imagePrompts.map((p) => ({
           id: p.id,
@@ -47,6 +49,8 @@ export default async function BriefPage({
               thumbnailUrl: brief.sourceMaterial.asset.thumbnailUrl,
             }
           : null,
+        createdAt: brief.createdAt.toISOString(),
+        updatedAt: brief.updatedAt.toISOString(),
       }}
     />
   );

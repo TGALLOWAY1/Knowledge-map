@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { cardMastery, isWeak } from "@/lib/srs";
 import { CATEGORIES, LIFECYCLE_STAGES } from "@/lib/constants";
 import { Card, Badge, ProgressBar, EmptyState, inputClass } from "@/components/ui";
+import { SmartImage } from "@/components/smart-image";
 import clsx from "clsx";
 
 export const dynamic = "force-dynamic";
@@ -175,19 +176,16 @@ export default async function LibraryPage({
             <Link key={m.id} href={`/library/${m.slug}`} className="group block">
               <Card className="overflow-hidden transition-shadow hover:shadow-md">
                 <div className="relative aspect-[16/9] overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                  {m.asset?.thumbnailUrl || m.asset?.originalUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={m.asset.thumbnailUrl ?? m.asset.originalUrl}
-                      alt={m.asset.altText ?? m.title}
-                      className="h-full w-full object-cover object-top transition-transform group-hover:scale-[1.02]"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-3xl font-semibold text-zinc-300 dark:text-zinc-600">
-                      {m.title.slice(0, 1)}
-                    </div>
-                  )}
+                  <SmartImage
+                    src={m.asset?.thumbnailUrl ?? m.asset?.originalUrl}
+                    alt={m.asset?.altText ?? m.title}
+                    className="h-full w-full object-cover object-top transition-transform group-hover:scale-[1.02]"
+                    fallback={
+                      <div className="flex h-full items-center justify-center text-3xl font-semibold text-zinc-300 dark:text-zinc-600">
+                        {m.title.slice(0, 1)}
+                      </div>
+                    }
+                  />
                   {due > 0 && (
                     <Badge color="red" className="absolute right-2 top-2 bg-white/90 dark:bg-zinc-900/90">
                       {due} due

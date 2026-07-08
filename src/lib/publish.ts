@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/constants";
+import { draftChecklist, failingRequired } from "@/lib/checklist";
 import type { GeneratedModule } from "@/lib/ai/schemas";
 
 // Publishes a reviewed StudyModuleDraft: creates the Module with its
@@ -12,6 +13,12 @@ export async function publishDraft(draftId: string, userId: string) {
     include: { sourceMaterial: true },
   });
   const content = draft.content as unknown as GeneratedModule;
+
+  // Server-side mirror of the publishing checklist shown in the draft editor.
+  const failing = failingRequired(draftChecklist(content, !!draft.sourceMaterial.assetId));
+  if (failing.length > 0) {
+    throw new Error(`Cannot publish — incomplete checklist: ${failing.join(", ")}`);
+  }
 
   const category = await prisma.category.findFirst({ where: { name: content.category } });
   if (!category) throw new Error(`Unknown category: ${content.category}`);

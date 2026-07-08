@@ -16,6 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Card, Badge, buttonClass, textareaClass } from "@/components/ui";
+import { SmartImage } from "@/components/smart-image";
 import { renderMarkdown } from "@/lib/markdown";
 
 export interface ReaderModule {
@@ -37,10 +38,17 @@ export interface ReaderModule {
   related: { slug: string; title: string; categoryName: string; categoryColor: string }[];
 }
 
-type Tab = "concepts" | "quiz" | "notes" | "ask";
+export type ReaderTab = "concepts" | "quiz" | "notes" | "ask";
+type Tab = ReaderTab;
 
-export function ModuleReader({ module }: { module: ReaderModule }) {
-  const [tab, setTab] = useState<Tab>("concepts");
+export function ModuleReader({
+  module,
+  initialTab = "concepts",
+}: {
+  module: ReaderModule;
+  initialTab?: ReaderTab;
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [zoom, setZoom] = useState(1);
   const [quizConceptId, setQuizConceptId] = useState<string | null>(null);
   const [askPrefill, setAskPrefill] = useState("");
@@ -143,19 +151,18 @@ export function ModuleReader({ module }: { module: ReaderModule }) {
               className="max-h-[75vh] overflow-auto overscroll-contain bg-zinc-50 dark:bg-zinc-950"
               style={{ touchAction: "pan-x pan-y pinch-zoom" }}
             >
-              {module.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={module.imageUrl}
-                  alt={module.imageAlt}
-                  className="mx-auto origin-top transition-transform"
-                  style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
-                />
-              ) : (
-                <div className="flex h-64 items-center justify-center text-sm text-zinc-400">
-                  No infographic image yet
-                </div>
-              )}
+              <SmartImage
+                src={module.imageUrl}
+                alt={module.imageAlt}
+                className="mx-auto origin-top transition-transform"
+                style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+                fallbackClassName="h-64 w-full"
+                fallbackLabel={
+                  module.imageUrl
+                    ? "Infographic image couldn't be loaded"
+                    : "No infographic image yet"
+                }
+              />
             </div>
           </Card>
           {module.summary && (
