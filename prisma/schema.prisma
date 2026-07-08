@@ -1,0 +1,390 @@
+// Knowledge Map — interview-prep study system
+// Content is never hardcoded in components: modules, concepts, quick hits,
+// questions, and review state all render from this database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & auth-ready layer
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  createdAt    DateTime      @default(now())
+  reviewStates ReviewState[]
+  attempts     Attempt[]
+  notes        Note[]
+  bookmarks    Bookmark[]
+}
+
+// ---------------------------------------------------------------------------
+// Taxonomy
+// ---------------------------------------------------------------------------
+
+model Category {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  name    String   @unique
+  color   String // tailwind-friendly accent token, e.g. "violet"
+  order   Int      @default(0)
+  modules Module[]
+  gaps    ConceptGap[]
+  briefs  InfographicBrief[]
+}
+
+model LifecycleStage {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  name    String   @unique
+  order   Int      @default(0)
+  modules Module[]
+  gaps    ConceptGap[]
+  briefs  InfographicBrief[]
+}
+
+// ---------------------------------------------------------------------------
+// Infographic Studio pipeline
+// gap → brief → image prompt → awaiting image → draft → published module
+// ---------------------------------------------------------------------------
+
+enum GapStatus {
+  SUGGESTED
+  BACKLOG
+  DISMISSED
+  COVERED
+  PROMOTED // became a brief
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model ConceptGap {
+  id               String          @id @default(cuid())
+  title            String
+  reason           String // why this matters
+  recommendation   String? // recommended infographic contents
+  sourceSignal     String? // e.g. "weak quiz performance in Embeddings"
+  status           GapStatus       @default(SUGGESTED)
+  priority         Priority        @default(MEDIUM)
+  notes            String?
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  categoryId       String?
+  lifecycleStage   LifecycleStage? @relation(fields: [lifecycleStageId], references: [id])
+  lifecycleStageId String?
+  brief            InfographicBrief?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+enum BriefStage {
+  DRAFT // brief being edited, no final image prompt yet
+  AWAITING_IMAGE // prompt generated, waiting for the user to create/upload image
+  IMAGE_ATTACHED // final image uploaded; study module draft can be generated
+  ARCHIVED
+}
+
+model InfographicBrief {
+  id                 String                  @id @default(cuid())
+  title              String
+  learningObjective  String?
+  audienceLevel      String? // e.g. "mid-level ML engineer interview"
+  tags               String[]
+  // structured brief content, editable before prompt generation:
+  // { mainSections, keyTerms, examples, interviewQuestions, visualLayout,
+  //   misconceptions, suggestedQuickHits, suggestedConcepts }
+  content            Json
+  stage              BriefStage              @default(DRAFT)
+  category           Category?               @relation(fields: [categoryId], references: [id])
+  categoryId         String?
+  lifecycleStage     LifecycleStage?         @relation(fields: [lifecycleStageId], references: [id])
+  lifecycleStageId   String?
+  conceptGap         ConceptGap?             @relation(fields: [conceptGapId], references: [id])
+  conceptGapId       String?                 @unique
+  imagePrompts       ImageGenerationPrompt[]
+  sourceMaterial     SourceMaterial?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model ImageGenerationPrompt {
+  id         String           @id @default(cuid())
+  brief      InfographicBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  briefId    String
+  promptText String
+  targetModel String          @default("gpt-image-2")
+  version    Int              @default(1)
+  createdAt  DateTime         @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Source material — the source of truth for study content generation.
+// Study modules are generated from this, not reverse-engineered from images.
+// ---------------------------------------------------------------------------
+
+model SourceMaterial {
+  id                String            @id @default(cuid())
+  concept           String // original concept/title
+  details           String? // infographic details (pasted or from brief)
+  imagePrompt       String? // the GPT Image 2 prompt used
+  notes             String?
+  modelUsed         String? // image model, if provided
+  generationVersion Int               @default(0) // bumped on each study-content regeneration
+  brief             InfographicBrief? @relation(fields: [briefId], references: [id])
+  briefId           String?           @unique
+  asset             InfographicAsset? @relation(fields: [assetId], references: [id])
+  assetId           String?           @unique
+  drafts            StudyModuleDraft[]
+  module            Module?
+  createdAt         DateTime          @default(now())
+  publishedAt       DateTime?
+}
+
+enum AssetSource {
+  UPLOAD
+  DRIVE
+}
+
+model InfographicAsset {
+  id             String         @id @default(cuid())
+  source         AssetSource
+  storageKey     String? // key in app-controlled storage (null while Drive-only)
+  thumbnailKey   String?
+  originalUrl    String // canonical serving URL (/api/assets/… or Drive URL pre-import)
+  thumbnailUrl   String?
+  driveFileId    String? // set when sourced from Google Drive
+  mimeType       String         @default("image/png")
+  sizeBytes      Int?
+  width          Int?
+  height         Int?
+  altText        String?
+  createdAt      DateTime       @default(now())
+  sourceMaterial SourceMaterial?
+  module         Module?
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+// Tracks uploads and (future) Drive-inbox imports into app storage.
+model IngestionJob {
+  id        String    @id @default(cuid())
+  kind      String // "upload" | "drive_import"
+  status    JobStatus @default(PENDING)
+  payload   Json?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Study module drafts & published modules
+// ---------------------------------------------------------------------------
+
+enum DraftStatus {
+  NEEDS_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+model StudyModuleDraft {
+  id                String         @id @default(cuid())
+  sourceMaterial    SourceMaterial @relation(fields: [sourceMaterialId], references: [id], onDelete: Cascade)
+  sourceMaterialId  String
+  // full generated module payload, editable in the review screen:
+  // { title, subtitle, categorySlug, lifecycleSlug, tags, summary,
+  //   concepts: [{name, summary, keyPoints}], quickHits: [{question, answer}],
+  //   questions: [{prompt, rubric: {criteria}}], altText }
+  content           Json
+  generationVersion Int            @default(1)
+  status            DraftStatus    @default(NEEDS_REVIEW)
+  module            Module?        @relation(fields: [moduleId], references: [id])
+  moduleId          String?        @unique
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+enum ModuleStatus {
+  PUBLISHED
+  ARCHIVED
+}
+
+model Module {
+  id               String            @id @default(cuid())
+  slug             String            @unique
+  title            String
+  subtitle         String?
+  summary          String?
+  tags             String[]
+  status           ModuleStatus      @default(PUBLISHED)
+  category         Category          @relation(fields: [categoryId], references: [id])
+  categoryId       String
+  lifecycleStage   LifecycleStage?   @relation(fields: [lifecycleStageId], references: [id])
+  lifecycleStageId String?
+  asset            InfographicAsset? @relation(fields: [assetId], references: [id])
+  assetId          String?           @unique
+  sourceMaterial   SourceMaterial?   @relation(fields: [sourceMaterialId], references: [id])
+  sourceMaterialId String?           @unique
+  concepts         Concept[]
+  quickHits        QuickHit[]
+  questions        Question[]
+  draft            StudyModuleDraft?
+  attempts         Attempt[]
+  notes            Note[]
+  bookmarks        Bookmark[]
+  publishedAt      DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+}
+
+model Concept {
+  id           String        @id @default(cuid())
+  module       Module        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId     String
+  name         String
+  summary      String
+  keyPoints    String[]
+  order        Int           @default(0)
+  reviewStates ReviewState[]
+  attempts     Attempt[]
+  notes        Note[]
+  bookmarks    Bookmark[]
+  questions    Question[]
+}
+
+model QuickHit {
+  id           String        @id @default(cuid())
+  module       Module        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId     String
+  question     String
+  answer       String
+  order        Int           @default(0)
+  reviewStates ReviewState[]
+}
+
+// Cached AI-generated free-response interview questions with rubrics —
+// reused across attempts instead of regenerated (cost control).
+model Question {
+  id        String   @id @default(cuid())
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId  String
+  concept   Concept? @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  conceptId String?
+  prompt    String
+  rubric    Rubric?  @relation(fields: [rubricId], references: [id])
+  rubricId  String?
+  attempts  Attempt[]
+  createdAt DateTime @default(now())
+}
+
+model Rubric {
+  id        String     @id @default(cuid())
+  // { criteria: [{ name, description, weight }], strongAnswerOutline }
+  content   Json
+  questions Question[]
+  createdAt DateTime   @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Spaced repetition & progress
+// ---------------------------------------------------------------------------
+
+enum CardStatus {
+  NEW
+  LEARNING
+  REVIEW
+  LAPSED
+}
+
+// One row per (user, card). A card is a Concept or a QuickHit.
+model ReviewState {
+  id             String     @id @default(cuid())
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  concept        Concept?   @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  conceptId      String?
+  quickHit       QuickHit?  @relation(fields: [quickHitId], references: [id], onDelete: Cascade)
+  quickHitId     String?
+  status         CardStatus @default(NEW)
+  dueAt          DateTime   @default(now())
+  lastReviewedAt DateTime?
+  intervalDays   Float      @default(0)
+  ease           Float      @default(2.5) // SM-2 ease factor
+  reps           Int        @default(0)
+  lapses         Int        @default(0)
+  // rating history: [{ at, rating }]
+  history        Json       @default("[]")
+
+  @@unique([userId, conceptId])
+  @@unique([userId, quickHitId])
+  @@index([userId, dueAt])
+}
+
+enum Verdict {
+  STRONG
+  PARTIAL
+  OFF_TRACK
+}
+
+model Attempt {
+  id              String    @id @default(cuid())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  module          Module    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId        String
+  concept         Concept?  @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  conceptId       String?
+  question        Question? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  questionId      String?
+  answerText      String
+  verdict         Verdict
+  score           Int // 0–100
+  feedback        String
+  missedPoints    String[]
+  suggestedAnswer String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  module    Module?  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId  String?
+  concept   Concept? @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  conceptId String?
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Saved deep-dive explanations and starred content.
+model Bookmark {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  module    Module?  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId  String?
+  concept   Concept? @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  conceptId String?
+  kind      String   @default("deep_dive") // "deep_dive" | "module" | "concept"
+  title     String
+  body      String?
+  createdAt DateTime @default(now())
+}
